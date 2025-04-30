@@ -40,28 +40,28 @@ const ComponentsAuthLoginForm = () => {
 
     const submitForm = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        setErrors({});
+        // setIsSubmitting(true);
+        // setErrors({});
 
-        const validationErrors = validateForm();
-        if (Object.keys(validationErrors).length > 0) {
-            setErrors(validationErrors);
-            setIsSubmitting(false);
-            return;
-        }
+        // const validationErrors = validateForm();
+        // if (Object.keys(validationErrors).length > 0) {
+        //     setErrors(validationErrors);
+        //     setIsSubmitting(false);
+        //     return;
+        // }
 
-        try {
-            const { error } = await signIn(email, password);
-            if (error) {
-                setErrors({ general: 'Invalid email or password' });
-            } else {
-                router.push('/');
-            }
-        } catch (error) {
-            setErrors({ general: 'An unexpected error occurred. Please try again.' });
-        } finally {
-            setIsSubmitting(false);
-        }
+        // try {
+        //     const { error } = await signIn(email, password);
+        //     if (error) {
+        //         setErrors({ general: 'Invalid email or password' });
+        //     } else {
+        //         router.push('/');
+        //     }
+        // } catch (error) {
+        //     setErrors({ general: 'An unexpected error occurred. Please try again.' });
+        // } finally {
+        //     setIsSubmitting(false);
+        // }
     };
 
     return (
