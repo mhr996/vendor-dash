@@ -29,6 +29,7 @@ interface Product {
     category: number | null;
     shops?: {
         shop_name: string;
+        owner?: string;
     };
     categories?: Category;
     sale_price?: number | null;
@@ -68,7 +69,40 @@ const ProductsList = () => {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const { data, error } = await supabase.from('products').select('*, shops(shop_name), categories(*)');
+                // Get current user
+                const { data: userData, error: userError } = await supabase.auth.getUser();
+                if (userError) throw userError;
+
+                // Get user's role from profiles table
+                const { data: profileData, error: profileError } = await supabase.from('profiles').select('role').eq('id', userData?.user?.id).single();
+
+                if (profileError) throw profileError;
+
+                const isAdmin = profileData?.role === 1;
+
+                // If admin, show all products
+                // If regular user, only show products from shops they own
+                let productsQuery = supabase.from('products').select('*, shops(shop_name, owner), categories(*)');
+
+                if (!isAdmin) {
+                    // First get the shops this user owns
+                    const { data: userShops, error: shopError } = await supabase.from('shops').select('id').eq('owner', userData.user.id);
+
+                    if (shopError) throw shopError;
+
+                    if (userShops && userShops.length > 0) {
+                        const shopIds = userShops.map((shop) => shop.id);
+                        // Only get products that belong to the user's shops
+                        productsQuery = productsQuery.in('shop', shopIds);
+                    } else {
+                        // User has no shops, return empty array
+                        setItems([]);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                const { data, error } = await productsQuery;
                 if (error) throw error;
 
                 setItems(data as Product[]);
@@ -123,6 +157,27 @@ const ProductsList = () => {
     const confirmDeletion = async () => {
         if (!productToDelete) return;
         try {
+            // Get current user to verify permission
+            const { data: userData } = await supabase.auth.getUser();
+            if (!userData?.user?.id) throw new Error('User not authenticated');
+
+            // Get the product with its shop data to check ownership
+            const { data: product, error: productError } = await supabase.from('products').select('shop, shops(owner)').eq('id', productToDelete.id).single();
+
+            if (productError) throw productError;
+
+            // Get user's role to check if admin
+            const { data: profileData, error: profileError } = await supabase.from('profiles').select('role').eq('id', userData.user.id).single();
+
+            if (profileError) throw profileError;
+
+            const isAdmin = profileData?.role === 1;
+
+            // Check if user has permission to delete this product
+            if (!isAdmin && product.shops.owner !== userData.user.id) {
+                throw new Error('You do not have permission to delete this product');
+            }
+
             // Delete images from storage first
             if (productToDelete.images?.length) {
                 await Promise.all(
@@ -142,9 +197,9 @@ const ProductsList = () => {
             const updatedItems = items.filter((p) => p.id !== productToDelete.id);
             setItems(updatedItems);
             setAlert({ visible: true, message: 'Product deleted successfully.', type: 'success' });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Deletion error:', error);
-            setAlert({ visible: true, message: 'Error deleting product.', type: 'danger' });
+            setAlert({ visible: true, message: error.message || 'Error deleting product.', type: 'danger' });
         } finally {
             setShowConfirmModal(false);
             setProductToDelete(null);
@@ -153,13 +208,35 @@ const ProductsList = () => {
 
     const toggleProductStatus = async (id: string, status: boolean) => {
         try {
+            // Get current user to verify permission
+            const { data: userData } = await supabase.auth.getUser();
+            if (!userData?.user?.id) throw new Error('User not authenticated');
+
+            // Get the product with its shop data to check ownership
+            const { data: product, error: productError } = await supabase.from('products').select('shop, shops(owner)').eq('id', id).single();
+
+            if (productError) throw productError;
+
+            // Get user's role to check if admin
+            const { data: profileData, error: profileError } = await supabase.from('profiles').select('role').eq('id', userData.user.id).single();
+
+            if (profileError) throw profileError;
+
+            const isAdmin = profileData?.role === 1;
+
+            // Check if user has permission to update this product
+            if (!isAdmin && product.shops.owner !== userData.user.id) {
+                throw new Error('You do not have permission to update this product');
+            }
+
             const { error } = await supabase.from('products').update({ active: status }).eq('id', id);
             if (error) throw error;
 
             const updatedItems = items.map((item) => (item.id === id ? { ...item, active: status } : item));
             setItems(updatedItems);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating product status:', error);
+            setAlert({ visible: true, message: error.message || 'Error updating product status', type: 'danger' });
         }
     };
 

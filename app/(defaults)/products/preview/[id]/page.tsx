@@ -4,6 +4,7 @@ import supabase from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import IconEdit from '@/components/icon/icon-edit';
+import { Alert } from '@/components/elements/alerts/elements-alerts-default';
 
 interface Product {
     id: string;
@@ -40,16 +41,47 @@ const ProductDetailsPage = ({ params }: ProductDetailsPageProps) => {
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [unauthorized, setUnauthorized] = useState(false);
+    const [alert, setAlert] = useState<{ visible: boolean; message: string; type: 'success' | 'danger' }>({
+        visible: false,
+        message: '',
+        type: 'danger',
+    });
 
     useEffect(() => {
         const fetchProduct = async () => {
             try {
+                // Get current user
+                const { data: userData, error: userError } = await supabase.auth.getUser();
+                if (userError) throw userError;
+
+                // Get user's role from profiles table
+                const { data: profileData, error: profileError } = await supabase.from('profiles').select('role').eq('id', userData?.user?.id).single();
+
+                if (profileError) throw profileError;
+
+                const isAdmin = profileData?.role === 1;
+
+                // Get product data with shop info
                 const { data, error } = await supabase.from('products').select('*, shops(shop_name, owner), categories(title, desc)').eq('id', params.id).single();
 
                 if (error) throw error;
+
+                // Check if user has permission to view this product
+                if (!isAdmin && data.shops.owner !== userData.user.id) {
+                    setUnauthorized(true);
+                    setLoading(false);
+                    return;
+                }
+
                 setProduct(data);
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error fetching product:', error);
+                setAlert({
+                    visible: true,
+                    message: error.message || 'Error fetching product details',
+                    type: 'danger',
+                });
             } finally {
                 setLoading(false);
             }
@@ -62,6 +94,39 @@ const ProductDetailsPage = ({ params }: ProductDetailsPageProps) => {
         return (
             <div className="flex h-screen items-center justify-center">
                 <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            </div>
+        );
+    }
+
+    if (unauthorized) {
+        return (
+            <div className="container mx-auto p-6">
+                <div className="panel">
+                    <div className="flex flex-col items-center justify-center p-6">
+                        <div className="text-danger mb-4">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="40"
+                                height="40"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-bold mb-2">Unauthorized Access</h2>
+                        <p className="text-gray-500 mb-4">You do not have permission to view this product.</p>
+                        <button onClick={() => router.push('/products')} className="btn btn-primary">
+                            Return to Products
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -82,6 +147,12 @@ const ProductDetailsPage = ({ params }: ProductDetailsPageProps) => {
 
     return (
         <div className="container mx-auto p-6">
+            {alert.visible && (
+                <div className="mb-4">
+                    <Alert type={alert.type} title={alert.type === 'success' ? 'Success' : 'Error'} message={alert.message} onClose={() => setAlert({ ...alert, visible: false })} />
+                </div>
+            )}
+
             <div className="flex items-center gap-5 mb-6">
                 <div onClick={() => router.back()}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 mb-4 cursor-pointer text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">

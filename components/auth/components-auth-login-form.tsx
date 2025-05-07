@@ -40,33 +40,51 @@ const ComponentsAuthLoginForm = () => {
 
     const submitForm = async (e: React.FormEvent) => {
         e.preventDefault();
-        // setIsSubmitting(true);
-        // setErrors({});
+        setIsSubmitting(true);
+        setErrors({});
 
-        // const validationErrors = validateForm();
-        // if (Object.keys(validationErrors).length > 0) {
-        //     setErrors(validationErrors);
-        //     setIsSubmitting(false);
-        //     return;
-        // }
+        const validationErrors = validateForm();
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            setIsSubmitting(false);
+            return;
+        }
 
-        // try {
-        //     const { error } = await signIn(email, password);
-        //     if (error) {
-        //         setErrors({ general: 'Invalid email or password' });
-        //     } else {
-        //         router.push('/');
-        //     }
-        // } catch (error) {
-        //     setErrors({ general: 'An unexpected error occurred. Please try again.' });
-        // } finally {
-        //     setIsSubmitting(false);
-        // }
+        try {
+            const { user, error, errorCode } = await signIn(email, password);
+
+            if (error) {
+                // Check for the specific email not confirmed error
+                if (errorCode === 'email_not_confirmed') {
+                    setErrors({ general: 'Your email has not been confirmed yet. Please check your inbox and confirm your email before logging in.' });
+                   
+                } else {
+                    setErrors({ general: error });
+                }
+            } else {
+                // Check if email is confirmed
+                if (user && !user.email_confirmed_at) {
+                    router.push('/email-confirmation');
+                } else {
+                    router.push('/');
+                }
+            }
+        } catch (error) {
+            setErrors({ general: 'An unexpected error occurred. Please try again.' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
-        <form className="space-y-5 dark:text-white" onSubmit={submitForm}>
-            {errors.general && <div className="text-red-500 bg-red-100 p-3 rounded-md mb-4">{errors.general}</div>}
+        <form className="space-y-5" onSubmit={submitForm}>
+            {errors.general && (
+                <div className={`text-white p-3 rounded-md mb-4 ${errors.general.includes('not been confirmed') ? 'bg-amber-500' : 'bg-red-500'}`}>
+                    {errors.general}
+                 
+                </div>
+            )}
+
             <div>
                 <label htmlFor="Email">Email</label>
                 <div className="relative text-white-dark">
@@ -101,17 +119,13 @@ const ComponentsAuthLoginForm = () => {
                 </div>
                 {errors.password && <span className="text-red-500 text-sm mt-1">{errors.password}</span>}
             </div>
-            <div className="flex justify-between">
-                <label className="flex cursor-pointer items-center">
-                    <input type="checkbox" className="form-checkbox bg-white dark:bg-black" />
-                    <span className="text-white-dark">Remember me</span>
-                </label>
-                <Link href="/reset-password" className="text-primary hover:underline">
-                    Forgot Password?
+            <div>
+                <Link href="/reset-password" className="text-primary hover:underline font-bold">
+                    Forgot password?
                 </Link>
             </div>
-            <button type="submit" className="btn btn-gradient !mt-6 w-full border-0 uppercase shadow-[0_10px_20px_-10px_rgba(67,97,238,0.44)]" disabled={isSubmitting}>
-                {isSubmitting ? 'Signing In...' : 'Sign In'}
+            <button type="submit" className="btn btn-primary w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Signing In...' : 'SIGN IN'}
             </button>
         </form>
     );

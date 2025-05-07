@@ -18,7 +18,7 @@ const CoverRegister = () => {
             <div className="absolute inset-0">
                 <img src="/assets/images/auth/bg-gradient.png" alt="image" className="h-full w-full object-cover" />
             </div>
-            {/* <div className="relative flex min-h-screen items-center justify-center bg-[url(/assets/images/auth/map.png)] bg-cover bg-center bg-no-repeat px-6 py-10 dark:bg-[#060818] sm:px-16">
+            <div className="relative flex min-h-screen items-center justify-center bg-[url(/assets/images/auth/map.png)] bg-cover bg-center bg-no-repeat px-6 py-10 dark:bg-[#060818] sm:px-16">
                 <img src="/assets/images/auth/coming-soon-object1.png" alt="image" className="absolute left-0 top-1/2 h-full max-h-[893px] -translate-y-1/2" />
                 <img src="/assets/images/auth/coming-soon-object2.png" alt="image" className="absolute left-24 top-0 h-40 md:left-[30%]" />
                 <img src="/assets/images/auth/coming-soon-object3.png" alt="image" className="absolute right-0 top-0 h-[300px]" />
@@ -49,7 +49,7 @@ const CoverRegister = () => {
                             </div>
                             <ComponentsAuthRegisterForm />
 
-                            <div className="relative my-7 text-center md:mb-9">
+                            {/* <div className="relative my-7 text-center md:mb-9">
                                 <span className="absolute inset-x-0 top-1/2 h-px w-full -translate-y-1/2 bg-white-light dark:bg-white-dark"></span>
                                 <span className="relative bg-white px-2 font-bold uppercase text-white-dark dark:bg-dark dark:text-white-light">or</span>
                             </div>
@@ -92,7 +92,7 @@ const CoverRegister = () => {
                                         </Link>
                                     </li>
                                 </ul>
-                            </div> 
+                            </div>  */}
 
                             <div className="text-center dark:text-white mt-4">
                                 Already have an account ?&nbsp;
@@ -104,7 +104,7 @@ const CoverRegister = () => {
                         <p className="absolute bottom-6 w-full text-center dark:text-white">© {new Date().getFullYear()}. All Rights Reserved.</p>
                     </div>
                 </div>
-            </div> */}
+            </div>
         </div>
     );
 };

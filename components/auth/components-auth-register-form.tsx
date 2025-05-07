@@ -52,30 +52,29 @@ const ComponentsAuthRegisterForm = () => {
 
     const submitForm = async (e: React.FormEvent) => {
         e.preventDefault();
-        // setIsSubmitting(true);
-        // setErrors({});
+        setIsSubmitting(true);
+        setErrors({});
 
-        // const validationErrors = validateForm();
-        // if (Object.keys(validationErrors).length > 0) {
-        //     setErrors(validationErrors);
-        //     setIsSubmitting(false);
-        //     return;
-        // }
+        const validationErrors = validateForm();
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            setIsSubmitting(false);
+            return;
+        }
 
-        // try {
-        //     const { error } = await signUp(email, password, name);
-        //     if (error) {
-        //         setErrors({ general: error });
-        //     } else {
-        //         // Show success message and redirect
-        //         alert('Registration successful');
-        //         router.push('/');
-        //     }
-        // } catch (error) {
-        //     setErrors({ general: 'An unexpected error occurred. Please try again.' });
-        // } finally {
-        //     setIsSubmitting(false);
-        // }
+        try {
+            const { user, error, emailConfirmationRequired } = await signUp(email, password, name);
+            if (error) {
+                setErrors({ general: error });
+            } else {
+                // Redirect to email confirmation page instead of home page
+                router.push('/email-confirmation');
+            }
+        } catch (error) {
+            setErrors({ general: 'An unexpected error occurred. Please try again.' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -132,7 +131,7 @@ const ComponentsAuthRegisterForm = () => {
                 </div>
                 {errors.password && <span className="text-red-500 text-sm mt-1">{errors.password}</span>}
             </div>
-          
+
             <button type="submit" className="btn btn-gradient !mt-6 w-full border-0 uppercase shadow-[0_10px_20px_-10px_rgba(67,97,238,0.44)]" disabled={isSubmitting}>
                 {isSubmitting ? 'Signing Up...' : 'Sign Up'}
             </button>

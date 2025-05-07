@@ -43,7 +43,8 @@ const AddShopPage = () => {
         logo_url: '',
         cover_image_url: '',
         owner: '',
-        active: true,
+        public: true, // Renamed from active to public - controls shop visibility
+        status: 'Pending', // New field - default status for all new shops
         address: '',
         work_hours: null as WorkHours[] | null,
         phone_numbers: [''],
@@ -57,12 +58,8 @@ const AddShopPage = () => {
         type: 'success',
     });
     const [loading, setLoading] = useState(false);
-    const [users, setUsers] = useState<Profile[]>([]);
+    const [currentUser, setCurrentUser] = useState<Profile | null>(null);
     const [categories, setCategories] = useState<Category[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredUsers, setFilteredUsers] = useState<Profile[]>([]);
-    const [showDropdown, setShowDropdown] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
     const categoryRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -91,24 +88,24 @@ const AddShopPage = () => {
         }
     }, []);
 
-    // Fetch current user, all users, and categories
+    // Fetch current user and categories
     useEffect(() => {
         const fetchData = async () => {
             try {
                 // Get current user
-                const {
-                    data: { user },
-                } = await supabase.auth.getUser();
-                if (user) {
-                    setForm((prev) => ({ ...prev, owner: user.id }));
+                const { data: userData, error: userError } = await supabase.auth.getUser();
+                if (userError) throw userError;
+
+                if (userData?.user) {
+                    // Set owner to current user's ID
+                    setForm((prev) => ({ ...prev, owner: userData.user.id }));
+
+                    // Get current user's profile data
+                    const { data: profileData, error: profileError } = await supabase.from('profiles').select('id, full_name, avatar_url').eq('id', userData.user.id).single();
+
+                    if (profileError) throw profileError;
+                    setCurrentUser(profileData);
                 }
-
-                // Fetch all users
-                const { data: profiles, error } = await supabase.from('profiles').select('id, full_name, avatar_url');
-
-                if (error) throw error;
-                setUsers(profiles || []);
-                setFilteredUsers(profiles || []);
 
                 // Fetch all categories
                 const { data: categoriesData, error: categoriesError } = await supabase.from('categories').select('*').order('title', { ascending: true });
@@ -117,23 +114,19 @@ const AddShopPage = () => {
                 setCategories(categoriesData || []);
             } catch (error) {
                 console.error('Error fetching data:', error);
+                setAlert({
+                    visible: true,
+                    message: 'Error fetching user data. Please try again.',
+                    type: 'danger',
+                });
             }
         };
         fetchData();
     }, []);
 
-    // Filter users based on search term
-    useEffect(() => {
-        const filtered = users.filter((user) => user.full_name.toLowerCase().includes(searchTerm.toLowerCase()));
-        setFilteredUsers(filtered);
-    }, [searchTerm, users]);
-
-    // Handle click outside for user dropdown
+    // Handle click outside for category dropdown
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setShowDropdown(false);
-            }
             if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
                 setIsCategoryDropdownOpen(false);
             }
@@ -163,12 +156,6 @@ const AddShopPage = () => {
             ...prev,
             cover_image_url: url,
         }));
-    };
-
-    const handleClearSearch = () => {
-        setSearchTerm('');
-        setShowDropdown(true);
-        setFilteredUsers(users);
     };
 
     const handleWorkHoursChange = (index: number, field: keyof WorkHours, value: string | boolean) => {
@@ -251,7 +238,7 @@ const AddShopPage = () => {
             return;
         }
         if (!form.owner) {
-            setAlert({ visible: true, message: 'Shop owner is required.', type: 'danger' });
+            setAlert({ visible: true, message: 'You must be logged in to create a shop.', type: 'danger' });
             setLoading(false);
             return;
         }
@@ -264,7 +251,8 @@ const AddShopPage = () => {
                 logo_url: form.logo_url,
                 cover_image_url: form.cover_image_url,
                 owner: form.owner,
-                active: form.active,
+                public: form.public,
+                status: form.status,
                 address: form.address,
                 work_hours: form.work_hours,
                 phone_numbers: form.phone_numbers.filter((phone) => phone.trim() !== ''),
@@ -276,6 +264,75 @@ const AddShopPage = () => {
             const { data: newShop, error } = await supabase.from('shops').insert([insertPayload]).select().single();
 
             if (error) throw error;
+
+            // Create a dedicated folder for this shop in the shops-logos bucket
+            // This ensures the folder exists even if no images are uploaded
+            const { error: folderError } = await supabase.storage.from('shops-logos').upload(`${newShop.id}/.folder`, new Blob(['']), {
+                contentType: 'application/json',
+                upsert: true,
+            });
+
+            if (folderError && folderError.message !== 'The resource already exists') {
+                console.error('Error creating shop folder:', folderError);
+                // Continue even if folder creation fails - this is not critical
+            }
+
+            // If a logo was uploaded before creating the shop (as temp with "new" ID)
+            // Move it to the correct shop folder
+            if (form.logo_url && form.logo_url.includes('/new/')) {
+                const oldFileName = form.logo_url.split('/').pop();
+                const oldPath = `new/${oldFileName}`;
+                const newPath = `${newShop.id}/${oldFileName}`;
+
+                // Copy the file to the new location
+                const { error: copyError } = await supabase.storage.from('shops-logos').copy(oldPath, newPath);
+
+                if (!copyError) {
+                    // Delete old file
+                    await supabase.storage.from('shops-logos').remove([oldPath]);
+
+                    // Get new public URL
+                    const {
+                        data: { publicUrl },
+                    } = supabase.storage.from('shops-logos').getPublicUrl(newPath);
+
+                    // Update shop with correct URL
+                    await supabase.from('shops').update({ logo_url: publicUrl }).eq('id', newShop.id);
+
+                    // Update form state with new URL
+                    form.logo_url = publicUrl;
+                } else {
+                    console.error('Error moving logo file:', copyError);
+                }
+            }
+
+            // Handle cover image the same way if needed
+            if (form.cover_image_url && form.cover_image_url.includes('/new/')) {
+                const oldFileName = form.cover_image_url.split('/').pop();
+                const oldPath = `covers/new/${oldFileName}`;
+                const newPath = `covers/${newShop.id}/${oldFileName}`;
+
+                // Copy the file to the new location
+                const { error: copyError } = await supabase.storage.from('shops-logos').copy(oldPath, newPath);
+
+                if (!copyError) {
+                    // Delete old file
+                    await supabase.storage.from('shops-logos').remove([oldPath]);
+
+                    // Get new public URL
+                    const {
+                        data: { publicUrl },
+                    } = supabase.storage.from('shops-logos').getPublicUrl(newPath);
+
+                    // Update shop with correct URL
+                    await supabase.from('shops').update({ cover_image_url: publicUrl }).eq('id', newShop.id);
+
+                    // Update form state with new URL
+                    form.cover_image_url = publicUrl;
+                } else {
+                    console.error('Error moving cover image file:', copyError);
+                }
+            }
 
             // If we have files to upload
             if (selectedFiles.length > 0 && newShop) {
@@ -443,48 +500,19 @@ const AddShopPage = () => {
                                     />
                                 </div>
 
-                                <div className="relative" ref={dropdownRef}>
-                                    <label htmlFor="owner" className="block text-sm font-bold text-gray-700 dark:text-white">
-                                        Shop Owner <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            placeholder="Search users..."
-                                            className="form-input pr-8"
-                                            value={searchTerm}
-                                            onChange={(e) => {
-                                                setSearchTerm(e.target.value);
-                                                setShowDropdown(true);
-                                            }}
-                                            onFocus={() => setShowDropdown(true)}
-                                        />
-                                        {searchTerm && (
-                                            <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 hover:text-danger" onClick={handleClearSearch}>
-                                                <IconX className="h-4 w-4" />
-                                            </button>
-                                        )}
-                                        {showDropdown && (
-                                            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-[#1b2e4b] border border-[#ebedf2] dark:border-[#191e3a] rounded-md shadow-lg max-h-60 overflow-auto">
-                                                <div className="py-1">
-                                                    {filteredUsers.map((user) => (
-                                                        <div
-                                                            key={user.id}
-                                                            className="flex items-center px-4 py-2 cursor-pointer hover:bg-primary/10 dark:hover:bg-primary/10"
-                                                            onClick={() => {
-                                                                setForm((prev) => ({ ...prev, owner: user.id }));
-                                                                setSearchTerm(user.full_name);
-                                                                setShowDropdown(false);
-                                                            }}
-                                                        >
-                                                            <img src={user.avatar_url || '/assets/images/user-placeholder.webp'} alt={user.full_name} className="w-8 h-8 rounded-full mr-2" />
-                                                            <span className="text-black dark:text-white">{user.full_name}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-white">Shop Owner</label>
+                                    <div className="flex items-center p-2 border border-[#e0e6ed] dark:border-[#191e3a] rounded bg-white dark:bg-black">
+                                        {currentUser ? (
+                                            <div className="flex items-center">
+                                                <img src={currentUser.avatar_url || '/assets/images/user-placeholder.webp'} alt={currentUser.full_name} className="w-8 h-8 rounded-full mr-2" />
+                                                <span className="text-black dark:text-white">{currentUser.full_name}</span>
                                             </div>
+                                        ) : (
+                                            <span className="text-gray-500">Loading user info...</span>
                                         )}
                                     </div>
+                                    <p className="text-xs text-gray-500 mt-1">New shops are automatically assigned to your account.</p>
                                 </div>
 
                                 <div ref={categoryRef} className="relative">
@@ -532,10 +560,10 @@ const AddShopPage = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-white">Status</label>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-white ">Visibility</label>
                                     <label className="inline-flex cursor-pointer items-center">
-                                        <input type="checkbox" name="active" className="form-checkbox" checked={form.active} onChange={handleInputChange} />
-                                        <span className="relative text-white-dark checked:bg-none ml-2">{form.active ? 'Active' : 'Inactive'}</span>
+                                        <input type="checkbox" name="public" className="form-checkbox" checked={form.public} onChange={handleInputChange} />
+                                        <span className="relative text-white-dark checked:bg-none ml-2">{form.public ? 'Public' : 'Private'}</span>
                                     </label>
                                 </div>
                             </div>

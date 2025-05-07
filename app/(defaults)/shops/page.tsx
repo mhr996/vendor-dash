@@ -18,7 +18,8 @@ interface Shop {
     shop_desc: string;
     logo_url: string | null;
     owner: string;
-    active: boolean;
+    public: boolean; // Controls if shop is public or private
+    status: string; // Shop status (Pending, Approved, etc.)
     created_at?: string;
     profiles?: {
         full_name: string;
@@ -54,8 +55,29 @@ const ShopsList = () => {
     useEffect(() => {
         const fetchShops = async () => {
             try {
-                // Join the profiles table to fetch owner's full name.
-                const { data, error } = await supabase.from('shops').select('*, profiles(full_name)');
+                // Get current user
+                const { data: userData, error: userError } = await supabase.auth.getUser();
+                if (userError) throw userError;
+
+                if (!userData?.user?.id) {
+                    throw new Error('User not authenticated');
+                }
+
+                // Get the user's role from the profiles table
+                const { data: profileData, error: profileError } = await supabase.from('profiles').select('role').eq('id', userData.user.id).single();
+
+                if (profileError) throw profileError;
+
+                const isAdmin = profileData?.role === 1;
+
+                let shopsQuery = supabase.from('shops').select('*, profiles(full_name)');
+
+                // If not admin, filter to only show user's own shops
+                if (!isAdmin) {
+                    shopsQuery = shopsQuery.eq('owner', userData.user.id);
+                }
+
+                const { data, error } = await shopsQuery;
                 if (error) throw error;
                 setItems(data as Shop[]);
             } catch (error) {
@@ -110,6 +132,54 @@ const ShopsList = () => {
     const confirmDeletion = async () => {
         if (!shopToDelete || !shopToDelete.id) return;
         try {
+            // Get current user
+            const { data: userData } = await supabase.auth.getUser();
+
+            // Verify ownership before deletion
+            const { data: shop, error: shopError } = await supabase.from('shops').select('owner').eq('id', shopToDelete.id).single();
+
+            if (shopError) throw shopError;
+
+            // Check if user is owner or admin
+            const { data: profileData } = await supabase.from('profiles').select('role').eq('id', userData?.user?.id).single();
+
+            const isAdmin = profileData?.role === 1;
+
+            if (!isAdmin && shop.owner !== userData?.user?.id) {
+                throw new Error('You do not have permission to delete this shop');
+            }
+
+            // Clean up storage folders first
+            try {
+                // 1. Delete all files in the shop's folder in the shops-logos bucket
+                const { data: logoFiles } = await supabase.storage.from('shops-logos').list(shopToDelete.id.toString());
+
+                if (logoFiles && logoFiles.length > 0) {
+                    await supabase.storage.from('shops-logos').remove(logoFiles.map((file) => `${shopToDelete.id}/${file.name}`));
+                }
+
+                // 2. Delete folder placeholder
+                await supabase.storage.from('shops-logos').remove([`${shopToDelete.id}/.folder`]);
+
+                // 3. Check for files in the shop-gallery bucket
+                const { data: galleryFiles } = await supabase.storage.from('shop-gallery').list(shopToDelete.id.toString());
+
+                if (galleryFiles && galleryFiles.length > 0) {
+                    await supabase.storage.from('shop-gallery').remove(galleryFiles.map((file) => `${shopToDelete.id}/${file.name}`));
+                }
+
+                // 4. Check for cover images
+                const { data: coverFiles } = await supabase.storage.from('shops-logos').list(`covers/${shopToDelete.id}`);
+
+                if (coverFiles && coverFiles.length > 0) {
+                    await supabase.storage.from('shops-logos').remove(coverFiles.map((file) => `covers/${shopToDelete.id}/${file.name}`));
+                }
+            } catch (storageError) {
+                console.error('Error cleaning up shop storage:', storageError);
+                // Continue with deletion even if storage cleanup fails
+            }
+
+            // Delete shop record from the database
             const { error } = await supabase.from('shops').delete().eq('id', shopToDelete.id);
             if (error) throw error;
             const updatedItems = items.filter((s) => s.id !== shopToDelete.id);
@@ -172,7 +242,7 @@ const ShopsList = () => {
                                 render: ({ shop_name, logo_url }) => (
                                     <div className="flex items-center font-semibold">
                                         <div className="w-max rounded-full ltr:mr-2 rtl:ml-2 flex items-center justify-center">
-                                            <img className="h-8 w-8 rounded-full object-cover" src={logo_url || `/assets/images/user-placeholder.webp`} alt="" />
+                                            <img className="h-8 w-8 rounded-full object-cover" src={logo_url || `/assets/images/shop-placeholder.jpg`} alt="" />
                                         </div>
                                         <div>{shop_name}</div>
                                     </div>
@@ -194,7 +264,19 @@ const ShopsList = () => {
                                 accessor: 'status',
                                 title: 'Status',
                                 sortable: true,
-                                render: ({ active }) => <span className={`badge badge-outline-${active ? 'success' : 'danger'}`}>{active ? 'Active' : 'Inactive'}</span>,
+                                render: ({ status }) => {
+                                    let statusClass = 'warning';
+                                    if (status === 'Approved') statusClass = 'success';
+                                    else if (status === 'Rejected') statusClass = 'danger';
+
+                                    return <span className={`badge badge-outline-${statusClass}`}>{status || 'Pending'}</span>;
+                                },
+                            },
+                            {
+                                accessor: 'visibility',
+                                title: 'Visibility',
+                                sortable: true,
+                                render: ({ public: isPublic }) => <span className={`badge badge-outline-${isPublic ? 'success' : 'danger'}`}>{isPublic ? 'Public' : 'Private'}</span>,
                             },
                             {
                                 accessor: 'action',

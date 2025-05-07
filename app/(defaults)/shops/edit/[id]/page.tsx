@@ -65,6 +65,7 @@ const EditShop = () => {
     const categoryRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [unauthorized, setUnauthorized] = useState(false);
 
     const [form, setForm] = useState<Shop>({
         id: 0,
@@ -112,9 +113,27 @@ const EditShop = () => {
     // Fetch shop data and categories
     const fetchShopData = async () => {
         try {
+            // Get current user
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+            if (userError) throw userError;
+
+            // Get user's role from profiles table
+            const { data: profileData, error: profileError } = await supabase.from('profiles').select('role').eq('id', userData?.user?.id).single();
+
+            if (profileError) throw profileError;
+
+            const isAdmin = profileData?.role === 1;
+
             // Fetch shop data
             const { data, error } = await supabase.from('shops').select('*, profiles(full_name, email)').eq('id', id).single();
             if (error) throw error;
+
+            // Check if user has permission to edit this shop
+            if (!isAdmin && data.owner !== userData?.user?.id) {
+                setUnauthorized(true);
+                setLoading(false);
+                return;
+            }
 
             // If work_hours is not set, initialize with default work hours
             if (!data.work_hours) {
@@ -281,6 +300,26 @@ const EditShop = () => {
                 throw new Error('Shop name is required');
             }
 
+            // Get current user
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+            if (userError) throw userError;
+
+            // Get user's role from profiles table
+            const { data: profileData, error: profileError } = await supabase.from('profiles').select('role').eq('id', userData?.user?.id).single();
+
+            if (profileError) throw profileError;
+
+            const isAdmin = profileData?.role === 1;
+
+            // Verify this user owns the shop or is admin
+            const { data: shop, error: shopError } = await supabase.from('shops').select('owner').eq('id', id).single();
+
+            if (shopError) throw shopError;
+
+            if (!isAdmin && shop.owner !== userData?.user?.id) {
+                throw new Error('You do not have permission to edit this shop');
+            }
+
             // Upload any new gallery images
             const galleryUrls = [...(form.gallery || [])];
 
@@ -346,6 +385,39 @@ const EditShop = () => {
         return <div className="flex items-center justify-center h-screen">Loading...</div>;
     }
 
+    if (unauthorized) {
+        return (
+            <div className="container mx-auto p-6">
+                <div className="panel">
+                    <div className="flex flex-col items-center justify-center p-6">
+                        <div className="text-danger mb-4">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="40"
+                                height="40"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-bold mb-2">Unauthorized Access</h2>
+                        <p className="text-gray-500 mb-4">You do not have permission to edit this shop.</p>
+                        <button onClick={() => router.push('/shops')} className="btn btn-primary">
+                            Return to Shops
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="container mx-auto p-6">
             <div className="mb-6 flex items-center justify-between">
@@ -355,23 +427,25 @@ const EditShop = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
                     </button>
-
-                    <ul className="flex space-x-2 rtl:space-x-reverse items-center">
-                        <li>
-                            <Link href="/" className="text-primary hover:underline">
-                                Home
-                            </Link>
-                        </li>
-                        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                            <Link href="/shops" className="text-primary hover:underline">
-                                Shops
-                            </Link>
-                        </li>
-                        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                            <span className="text-black dark:text-white-dark">Edit {form.shop_name}</span>
-                        </li>
-                    </ul>
+                    <h2 className="text-2xl font-bold">Edit Shop</h2>
                 </div>
+
+                {/* Breadcrumb Navigation */}
+                <ul className="flex space-x-2 rtl:space-x-reverse items-center">
+                    <li>
+                        <Link href="/" className="text-primary hover:underline">
+                            Home
+                        </Link>
+                    </li>
+                    <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                        <Link href="/shops" className="text-primary hover:underline">
+                            Shops
+                        </Link>
+                    </li>
+                    <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+                        <span className="text-black dark:text-white-dark">Edit {form.shop_name}</span>
+                    </li>
+                </ul>
             </div>
 
             {alert.visible && (
@@ -385,7 +459,7 @@ const EditShop = () => {
                 {/* Cover Image */}
                 <div className="panel mb-5 overflow-hidden">
                     <div className="relative h-52 w-full">
-                        <img src={form.cover_image_url || '/assets/images/shop-cover-placeholder.jpg'} alt="Shop Cover" className="h-full w-full object-cover" />
+                        <img src={form.cover_image_url || '/assets/images/img-placeholder-fallback.webp'} alt="Shop Cover" className="h-full w-full object-cover" />
                         <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                             <div className="text-center">
                                 <h2 className="text-xl font-bold text-white mb-4">Shop Cover Image</h2>
@@ -465,10 +539,10 @@ const EditShop = () => {
                                     <textarea id="shop_desc" name="shop_desc" className="form-textarea min-h-[100px]" value={form.shop_desc} onChange={handleInputChange} required />
                                 </div>
                                 <div>
-                                    <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">Status</label>
+                                    <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">Visibility</label>
                                     <label className="inline-flex cursor-pointer items-center">
                                         <input type="checkbox" name="active" className="form-checkbox" checked={form.active} onChange={handleInputChange} />
-                                        <span className="relative text-white-dark checked:bg-none ml-2">{form.active ? 'Active' : 'Inactive'}</span>
+                                        <span className="relative text-white-dark checked:bg-none ml-2">{form.active ? 'Public' : 'Private'}</span>
                                     </label>
                                 </div>
                                 <div ref={categoryRef} className="relative">
@@ -536,22 +610,24 @@ const EditShop = () => {
                                     <textarea
                                         id="address"
                                         name="address"
-                                        className="form-textarea flex-1"
-                                        value={form.address}
-                                        onChange={handleInputChange}
-                                        placeholder="Enter shop address"
                                         rows={2}
+                                        className="form-textarea flex-1"
+                                        placeholder="Enter shop address"
+                                        value={form.address || ''}
+                                        onChange={handleInputChange}
                                     />
                                 </div>
                             </div>
 
                             <div className="sm:col-span-2">
-                                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">Phone Numbers (Up to 3)</label>
+                                <label htmlFor="phone_numbers" className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">
+                                    Phone Numbers
+                                </label>
                                 <div className="space-y-3">
-                                    {form.phone_numbers?.map((phone, index) => (
+                                    {(form.phone_numbers || ['']).map((phone, index) => (
                                         <div key={index} className="flex items-center gap-2">
-                                            <span className="mt-1 ltr:mr-2 rtl:ml-2 text-success">
-                                                <IconPhone className="h-5 w-5" />
+                                            <span className="text-primary">
+                                                <IconPhone className="h-4 w-4" />
                                             </span>
                                             <input type="tel" className="form-input flex-1" placeholder="Enter phone number" value={phone} onChange={(e) => handlePhoneChange(index, e.target.value)} />
                                             {index > 0 && (
@@ -637,20 +713,19 @@ const EditShop = () => {
                             >
                                 <IconUpload className="mb-2 h-6 w-6" />
                                 <p className="text-sm text-gray-600 dark:text-gray-400">Click to upload</p>
-                                <p className="text-[10px] text-gray-500 dark:text-gray-500">JPG, PNG, GIF up to 2MB</p>
+                                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleFileChange} />
                             </div>
-                            <input ref={fileInputRef} type="file" className="hidden" accept="image/*" multiple onChange={handleFileChange} />
                         </div>
 
-                        <div className="space-y-5">
-                            {/* Selected files that will be uploaded */}
+                        <div>
+                            {/* Selected Files Preview */}
                             {selectedFiles.length > 0 && (
-                                <div>
-                                    <h6 className="font-semibold mb-3">Selected Images to Upload</h6>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                <div className="mb-5">
+                                    <h6 className="mb-3 text-base font-semibold dark:text-white-light">Selected Images:</h6>
+                                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                                         {selectedFiles.map((file, index) => (
-                                            <div key={index} className="group relative h-32">
-                                                <img src={URL.createObjectURL(file)} alt={`Selected ${index + 1}`} className="h-full w-full rounded-lg object-cover" />
+                                            <div key={index} className="group relative h-36 rounded-md border border-gray-200 dark:border-[#1b2e4b] overflow-hidden">
+                                                <img src={URL.createObjectURL(file)} alt={`Preview ${index}`} className="h-full w-full object-cover" />
                                                 <button
                                                     type="button"
                                                     className="absolute right-0 top-0 hidden rounded-full bg-red-500 p-1 text-white hover:bg-red-600 group-hover:block"
@@ -664,14 +739,14 @@ const EditShop = () => {
                                 </div>
                             )}
 
-                            {/* Existing gallery images */}
+                            {/* Existing Gallery Images */}
                             {form.gallery && form.gallery.length > 0 && (
                                 <div>
-                                    <h6 className="font-semibold mb-3">Current Gallery</h6>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                    <h6 className="mb-3 text-base font-semibold dark:text-white-light">Gallery Images:</h6>
+                                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                                         {form.gallery.map((image, index) => (
-                                            <div key={index} className="group relative h-32">
-                                                <img src={image} alt={`Gallery ${index + 1}`} className="h-full w-full rounded-lg object-cover" />
+                                            <div key={index} className="group relative h-36 rounded-md border border-gray-200 dark:border-[#1b2e4b] overflow-hidden">
+                                                <img src={image} alt={`Gallery ${index}`} className="h-full w-full object-cover" />
                                                 <button
                                                     type="button"
                                                     className="absolute right-0 top-0 hidden rounded-full bg-red-500 p-1 text-white hover:bg-red-600 group-hover:block"
