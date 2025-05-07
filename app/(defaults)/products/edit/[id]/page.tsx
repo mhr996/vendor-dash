@@ -42,7 +42,7 @@ const EditProductPage = ({ params }: EditProductPageProps) => {
                 if (productError) throw productError;
 
                 // Check if user has permission to edit this product
-                if (!isAdmin && product.shops.owner !== userData.user.id) {
+                if (!isAdmin && product.shops.length > 0 && product.shops[0].owner !== userData.user.id) {
                     setUnauthorized(true);
                 }
             } catch (error: any) {
