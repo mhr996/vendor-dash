@@ -65,10 +65,8 @@ const ProductDetailsPage = ({ params }: ProductDetailsPageProps) => {
                 // Get product data with shop info
                 const { data, error } = await supabase.from('products').select('*, shops(shop_name, owner), categories(title, desc)').eq('id', params.id).single();
 
-                if (error) throw error;
-
-                // Check if user has permission to view this product
-                if (!isAdmin && data.shops.owner !== userData.user.id) {
+                if (error) throw error; // Check if user has permission to view this product
+                if (!isAdmin && data.shops && data.shops[0]?.owner !== userData.user.id) {
                     setUnauthorized(true);
                     setLoading(false);
                     return;
