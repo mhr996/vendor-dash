@@ -149,9 +149,11 @@ const MapSelector: React.FC<MapSelectorProps> = ({ initialPosition = null, zoom 
                     center={position}
                     zoom={zoom}
                     style={{ height: '100%', width: '100%' }}
-                    whenReady={(map) => {
-                        mapRef.current = map.target;
-                        map.target.invalidateSize();
+                    ref={mapRef}
+                    whenReady={() => {
+                        if (mapRef.current) {
+                            mapRef.current.invalidateSize();
+                        }
                     }}
                     attributionControl={false}
                 >
