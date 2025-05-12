@@ -1,7 +1,8 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import supabase from '@/lib/supabase';
 import { Alert } from '@/components/elements/alerts/elements-alerts-default';
 import IconEdit from '@/components/icon/icon-edit';
@@ -12,8 +13,12 @@ import IconCalendar from '@/components/icon/icon-calendar';
 import IconUser from '@/components/icon/icon-user';
 import IconMail from '@/components/icon/icon-mail';
 import IconX from '@/components/icon/icon-x';
-import StaticMap from '@/components/map/static-map';
 import 'leaflet/dist/leaflet.css';
+
+// Import the map component dynamically with no SSR
+const StaticMap = dynamic(() => import('@/components/map/static-map'), {
+  ssr: false, // This will prevent the component from being rendered on the server
+});
 
 interface WorkHours {
     day: string;

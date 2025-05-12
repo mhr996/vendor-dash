@@ -1,7 +1,8 @@
 'use client';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import supabase from '@/lib/supabase';
 import { Alert } from '@/components/elements/alerts/elements-alerts-default';
 import ImageUpload from '@/components/image-upload/image-upload';
@@ -16,8 +17,12 @@ import IconCaretDown from '@/components/icon/icon-caret-down';
 import IconUpload from '@/components/icon/icon-camera';
 import AnimateHeight from 'react-animate-height';
 import Tabs from '@/components/tabs';
-import MapSelector from '@/components/map/map-selector';
 import 'leaflet/dist/leaflet.css';
+
+// Import the map component dynamically with no SSR
+const MapSelector = dynamic(() => import('@/components/map/map-selector'), {
+  ssr: false, // This will prevent the component from being rendered on the server
+});
 
 interface WorkHours {
     day: string;
