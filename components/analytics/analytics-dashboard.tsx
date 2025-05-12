@@ -924,8 +924,8 @@ const AnalyticsDashboard = () => {
                                 <IconUsersGroup className="h-7 w-7" />
                             </div>
                             <div className="ml-4">
-                                <h5 className="text-lg font-semibold dark:text-white-light">Users</h5>
-                                <div className="text-[13px] font-normal text-white-dark">Total Users</div>
+                                <h5 className="text-lg font-semibold dark:text-white-light">Customers</h5>
+                                <div className="text-[13px] font-normal text-white-dark">Total Customers</div>
                             </div>
                             <div className={`badge ml-auto ${analytics.userGrowth >= 0 ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
                                 {analytics.userGrowth >= 0 ? '+' : ''}

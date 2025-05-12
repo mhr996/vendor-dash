@@ -16,6 +16,8 @@ import IconCaretDown from '@/components/icon/icon-caret-down';
 import IconUpload from '@/components/icon/icon-camera';
 import AnimateHeight from 'react-animate-height';
 import Tabs from '@/components/tabs';
+import MapSelector from '@/components/map/map-selector';
+import 'leaflet/dist/leaflet.css';
 
 interface WorkHours {
     day: string;
@@ -44,6 +46,8 @@ interface Shop {
     phone_numbers?: string[];
     category_id?: number | null;
     gallery?: string[];
+    latitude?: number | null; // Geographical location data
+    longitude?: number | null; // Geographical location data
     profiles?: {
         full_name: string;
         email?: string;
@@ -338,9 +342,7 @@ const EditShop = () => {
 
                     galleryUrls.push(publicUrl);
                 }
-            }
-
-            // Create update payload with all fields we want to update
+            } // Create update payload with all fields we want to update
             const updatePayload = {
                 shop_name: form.shop_name,
                 shop_desc: form.shop_desc,
@@ -350,6 +352,8 @@ const EditShop = () => {
                 phone_numbers: form.phone_numbers?.filter((phone) => phone.trim() !== '') || [],
                 category_id: form.category_id,
                 gallery: galleryUrls,
+                latitude: form.latitude,
+                longitude: form.longitude,
             };
 
             // Update the shop data in Supabase
@@ -599,6 +603,7 @@ const EditShop = () => {
                             <h5 className="text-lg font-semibold dark:text-white-light">Shop Details</h5>
                         </div>
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                            {' '}
                             <div className="sm:col-span-2">
                                 <label htmlFor="address" className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">
                                     Address
@@ -618,7 +623,33 @@ const EditShop = () => {
                                     />
                                 </div>
                             </div>
-
+                            <div className="sm:col-span-2">
+                                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">Shop Location</label>{' '}
+                                <div className="h-[400px] mb-4">
+                                    {' '}
+                                    <MapSelector
+                                        initialPosition={form.latitude && form.longitude ? [form.latitude, form.longitude] : null}
+                                        onChange={(lat, lng) => {
+                                            setForm((prev) => ({
+                                                ...prev,
+                                                latitude: lat,
+                                                longitude: lng,
+                                            }));
+                                        }}
+                                        height="400px"
+                                        useCurrentLocationByDefault={false}
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Click on the map to select your shop's location.</p>
+                                {form.latitude && form.longitude && (
+                                    <p className="text-sm mt-2">
+                                        Selected coordinates:{' '}
+                                        <span className="font-semibold">
+                                            {form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}
+                                        </span>
+                                    </p>
+                                )}
+                            </div>
                             <div className="sm:col-span-2">
                                 <label htmlFor="phone_numbers" className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">
                                     Phone Numbers

@@ -15,6 +15,8 @@ import IconCaretDown from '@/components/icon/icon-caret-down';
 import IconUpload from '@/components/icon/icon-camera';
 import AnimateHeight from 'react-animate-height';
 import Tabs from '@/components/tabs';
+import MapSelector from '@/components/map/map-selector';
+import 'leaflet/dist/leaflet.css';
 
 interface Profile {
     id: string;
@@ -50,6 +52,8 @@ const AddShopPage = () => {
         phone_numbers: [''],
         category_id: null as number | null,
         gallery: [] as string[],
+        latitude: null as number | null, // Shop location coordinates
+        longitude: null as number | null, // Shop location coordinates
     });
 
     const [alert, setAlert] = useState<{ visible: boolean; message: string; type: 'success' | 'danger' }>({
@@ -150,11 +154,18 @@ const AddShopPage = () => {
             logo_url: url,
         }));
     };
-
     const handleCoverImageUpload = (url: string) => {
         setForm((prev) => ({
             ...prev,
             cover_image_url: url,
+        }));
+    };
+
+    const handleLocationChange = (lat: number, lng: number) => {
+        setForm((prev) => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng,
         }));
     };
 
@@ -242,7 +253,6 @@ const AddShopPage = () => {
             setLoading(false);
             return;
         }
-
         try {
             // Create a new insert payload
             const insertPayload = {
@@ -257,6 +267,8 @@ const AddShopPage = () => {
                 work_hours: form.work_hours,
                 phone_numbers: form.phone_numbers.filter((phone) => phone.trim() !== ''),
                 category_id: form.category_id,
+                latitude: form.latitude,
+                longitude: form.longitude,
                 // Gallery will be added after shop creation
             };
 
@@ -577,6 +589,7 @@ const AddShopPage = () => {
                             <h5 className="text-lg font-semibold dark:text-white-light">Shop Details</h5>
                         </div>
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                            {' '}
                             <div className="sm:col-span-2">
                                 <label htmlFor="address" className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">
                                     Address
@@ -596,8 +609,27 @@ const AddShopPage = () => {
                                     />
                                 </div>
                             </div>
-
                             <div className="sm:col-span-2">
+                                <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">Shop Location</label>{' '}
+                                <div className="h-[400px] mb-4">
+                                    <MapSelector
+                                        initialPosition={form.latitude && form.longitude ? [form.latitude, form.longitude] : null}
+                                        onChange={handleLocationChange}
+                                        height="400px"
+                                        useCurrentLocationByDefault={true}
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Click on the map to select your shop's location.</p>
+                                {form.latitude && form.longitude && (
+                                    <p className="text-sm mt-10">
+                                        Selected coordinates:{' '}
+                                        <span className="font-semibold">
+                                            {form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}
+                                        </span>
+                                    </p>
+                                )}
+                            </div>
+                            <div className="sm:col-span-2 mt-4">
                                 <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">Phone Numbers (Up to 3)</label>
                                 <div className="space-y-3">
                                     {form.phone_numbers.map((phone, index) => (

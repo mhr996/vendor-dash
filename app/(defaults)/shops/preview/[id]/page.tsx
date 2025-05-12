@@ -12,6 +12,8 @@ import IconCalendar from '@/components/icon/icon-calendar';
 import IconUser from '@/components/icon/icon-user';
 import IconMail from '@/components/icon/icon-mail';
 import IconX from '@/components/icon/icon-x';
+import StaticMap from '@/components/map/static-map';
+import 'leaflet/dist/leaflet.css';
 
 interface WorkHours {
     day: string;
@@ -41,6 +43,8 @@ interface Shop {
     phone_numbers?: string[];
     category_id?: number | null;
     gallery?: string[] | null;
+    latitude?: number | null; // Geographical location data
+    longitude?: number | null; // Geographical location data
     profiles?: {
         id: string;
         full_name: string;
@@ -362,6 +366,7 @@ const ShopPreview = () => {
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-5">
+                                    {' '}
                                     {/* Address */}
                                     <div>
                                         <h6 className="text-sm font-semibold mb-3">Address</h6>
@@ -372,7 +377,18 @@ const ShopPreview = () => {
                                             <p className="text-gray-500 dark:text-gray-400">{shop.address || 'No address provided'}</p>
                                         </div>
                                     </div>
-
+                                    {/* Map Location */}
+                                    {shop.latitude && shop.longitude && (
+                                        <div>
+                                            <h6 className="text-sm font-semibold mb-3">Shop Location</h6>
+                                            <div className="h-[400px] rounded-md overflow-hidden">
+                                                <StaticMap position={[shop.latitude, shop.longitude]} height="400px" />
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Coordinates: {shop.latitude.toFixed(6)}, {shop.longitude.toFixed(6)}
+                                            </p>
+                                        </div>
+                                    )}
                                     {/* Contact Numbers */}
                                     <div>
                                         <h6 className="text-sm font-semibold mb-3">Contact Numbers</h6>
@@ -394,7 +410,6 @@ const ShopPreview = () => {
                                             )}
                                         </div>
                                     </div>
-
                                     {/* Category */}
                                     <div>
                                         <h6 className="text-sm font-semibold mb-3">Category</h6>
@@ -403,7 +418,6 @@ const ShopPreview = () => {
                                             {shop.categories?.desc && <p className="ml-3 text-gray-500 dark:text-gray-400">{shop.categories.desc}</p>}
                                         </div>
                                     </div>
-
                                     {/* Working Hours */}
                                     <div>
                                         <h6 className="text-sm font-semibold mb-3">Working Hours</h6>
@@ -425,7 +439,6 @@ const ShopPreview = () => {
                                             </div>
                                         </div>
                                     </div>
-
                                     {/* Gallery */}
                                     {gallery && gallery.length > 0 && (
                                         <div>

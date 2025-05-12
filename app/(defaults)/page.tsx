@@ -452,7 +452,7 @@ const HomePage = () => {
                                 </div>
                                 <div className="ltr:ml-5 rtl:mr-5 w-full">
                                     <div className="flex items-center justify-between">
-                                        <h5 className="text-[15px] font-semibold dark:text-white-light">Users</h5>
+                                        <h5 className="text-[15px] font-semibold dark:text-white-light">Customers</h5>
                                         <div className={`badge ${stats.userGrowth >= 0 ? 'badge-outline-success' : 'badge-outline-danger'}`}>
                                             {stats.userGrowth >= 0 ? '+' : ''}
                                             {stats.userGrowth.toFixed(1)}%
@@ -617,7 +617,7 @@ const HomePage = () => {
                                     </svg>
                                 </div>
                             </Link>
-                            <Link
+                            {/* <Link
                                 href="/users"
                                 className="flex items-center justify-between p-3 transition-all duration-300 bg-white-light/30 hover:bg-white-light/50 dark:bg-dark dark:hover:bg-dark-light/10 rounded"
                             >
@@ -634,7 +634,7 @@ const HomePage = () => {
                                         <path d="M9 5L15 12L9 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
                                 </div>
-                            </Link>
+                            </Link> */}
                             <Link
                                 href="/settings"
                                 className="flex items-center justify-between p-3 transition-all duration-300 bg-white-light/30 hover:bg-white-light/50 dark:bg-dark dark:hover:bg-dark-light/10 rounded"

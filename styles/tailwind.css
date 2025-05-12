@@ -6,6 +6,9 @@
 /* swiper css */
 @import './swiper.css';
 
+/* Leaflet custom styles */
+@import './leaflet-custom.css';
+
 /* Elements - Progressbar */
 @import './progressbar.css';
 
