@@ -13,21 +13,21 @@ export const useLeafletCleanup = () => {
         return () => {
             // Clean up all Leaflet event listeners
             // This prevents memory leaks when components unmount
-            const eventHandlersKeys = Object.keys(L.DomEvent._globalEventHandlers || {});
+            const eventHandlers = (L.DomEvent as any)._globalEventHandlers || {};
+            const eventHandlersKeys = Object.keys(eventHandlers);
             eventHandlersKeys.forEach((k) => {
-                const handler = L.DomEvent._globalEventHandlers[k];
+                const handler = eventHandlers[k];
                 if (handler && handler.length > 0) {
-                    handler.forEach((h) => {
+                    handler.forEach((h: any) => {
                         if (h.target) {
                             L.DomEvent.off(h.target);
                         }
                     });
                 }
             });
-
             // Clear popup cache if it exists
-            if (L.Popup && L.Popup._popupCache) {
-                L.Popup._popupCache = {};
+            if (L.Popup && (L.Popup as any)._popupCache) {
+                (L.Popup as any)._popupCache = {};
             }
         };
     }, []);
