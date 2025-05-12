@@ -27,10 +27,12 @@ interface Product {
     price: string;
     images: string[];
     category: number | null;
-    shops?: {
-        shop_name: string;
-        owner?: string;
-    };
+    shops?:
+        | {
+              shop_name: string;
+              owner?: string;
+          }
+        | { owner: string }[];
     categories?: Category;
     sale_price?: number | null;
     discount_type?: 'percentage' | 'fixed' | null;
@@ -171,10 +173,8 @@ const ProductsList = () => {
 
             if (profileError) throw profileError;
 
-            const isAdmin = profileData?.role === 1;
-
-            // Check if user has permission to delete this product
-            if (!isAdmin && product.shops.owner !== userData.user.id) {
+            const isAdmin = profileData?.role === 1; // Check if user has permission to delete this product
+            if (!isAdmin && product.shops && product.shops[0]?.owner !== userData.user.id) {
                 throw new Error('You do not have permission to delete this product');
             }
 
