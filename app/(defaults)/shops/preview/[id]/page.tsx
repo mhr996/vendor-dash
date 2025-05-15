@@ -17,7 +17,7 @@ import 'leaflet/dist/leaflet.css';
 
 // Import the map component dynamically with no SSR
 const StaticMap = dynamic(() => import('@/components/map/static-map'), {
-  ssr: false, // This will prevent the component from being rendered on the server
+    ssr: false, // This will prevent the component from being rendered on the server
 });
 
 interface WorkHours {
