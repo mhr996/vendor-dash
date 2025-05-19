@@ -16,7 +16,7 @@ import IconX from '@/components/icon/icon-x';
 import 'leaflet/dist/leaflet.css';
 
 // Import the map component dynamically with no SSR
-const StaticMap = dynamic(() => import('@/components/map/static-map'), {
+const InteractiveMap = dynamic(() => import('@/components/map/interactive-map'), {
     ssr: false, // This will prevent the component from being rendered on the server
 });
 
@@ -387,7 +387,7 @@ const ShopPreview = () => {
                                         <div>
                                             <h6 className="text-sm font-semibold mb-3">Shop Location</h6>
                                             <div className="h-[400px] rounded-md overflow-hidden">
-                                                <StaticMap position={[shop.latitude, shop.longitude]} height="400px" />
+                                                <InteractiveMap position={[shop.latitude, shop.longitude]} height="400px" shopName={shop.shop_name} shopAddress={shop.address} />
                                             </div>
                                             <p className="text-xs text-gray-500 mt-2">
                                                 Coordinates: {shop.latitude.toFixed(6)}, {shop.longitude.toFixed(6)}

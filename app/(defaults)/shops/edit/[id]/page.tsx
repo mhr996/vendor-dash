@@ -45,7 +45,8 @@ interface Shop {
     shop_desc: string;
     logo_url: string | null;
     cover_image_url: string | null;
-    active: boolean;
+    public: boolean; 
+    status: string;
     address?: string;
     work_hours?: WorkHours[];
     phone_numbers?: string[];
@@ -83,7 +84,8 @@ const EditShop = () => {
         logo_url: null,
         cover_image_url: null,
         owner: '',
-        active: true,
+        public: true,
+        status: 'Pending',
         created_at: '',
         address: '',
         phone_numbers: [''],
@@ -351,7 +353,8 @@ const EditShop = () => {
             const updatePayload = {
                 shop_name: form.shop_name,
                 shop_desc: form.shop_desc,
-                active: form.active,
+                public: form.public,
+                status: form.status,
                 address: form.address,
                 work_hours: form.work_hours || defaultWorkHours,
                 phone_numbers: form.phone_numbers?.filter((phone) => phone.trim() !== '') || [],
@@ -476,7 +479,7 @@ const EditShop = () => {
                                     bucket="shops-covers"
                                     userId={id.toString()}
                                     url={form.cover_image_url}
-                                    placeholderImage="/assets/images/shop-cover-placeholder.jpg"
+                                    placeholderImage="/assets/images/img-placeholder-fallback.webp"
                                     onUploadComplete={handleCoverImageUpload}
                                     onError={(error) => {
                                         setAlert({
@@ -545,13 +548,13 @@ const EditShop = () => {
                                     <label htmlFor="shop_desc" className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">
                                         Description
                                     </label>
-                                    <textarea id="shop_desc" name="shop_desc" className="form-textarea min-h-[100px]" value={form.shop_desc} onChange={handleInputChange} required />
+                                    <textarea id="shop_desc" name="shop_desc" className="form-textarea min-h-[100px]" value={form.shop_desc} onChange={handleInputChange} />
                                 </div>
                                 <div>
-                                    <label className="mb-2 block text-sm font-semibold text-gray-700 dark:text-white">Visibility</label>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-white ">Visibility</label>
                                     <label className="inline-flex cursor-pointer items-center">
-                                        <input type="checkbox" name="active" className="form-checkbox" checked={form.active} onChange={handleInputChange} />
-                                        <span className="relative text-white-dark checked:bg-none ml-2">{form.active ? 'Public' : 'Private'}</span>
+                                        <input type="checkbox" name="public" className="form-checkbox" checked={form.public} onChange={handleInputChange} />
+                                        <span className="relative text-white-dark checked:bg-none ml-2">{form.public ? 'Public' : 'Private'}</span>
                                     </label>
                                 </div>
                                 <div ref={categoryRef} className="relative">
@@ -647,7 +650,7 @@ const EditShop = () => {
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">Click on the map to select your shop's location.</p>
                                 {form.latitude && form.longitude && (
-                                    <p className="text-sm mt-2">
+                                    <p className="text-sm mt-10">
                                         Selected coordinates:{' '}
                                         <span className="font-semibold">
                                             {form.latitude.toFixed(6)}, {form.longitude.toFixed(6)}
